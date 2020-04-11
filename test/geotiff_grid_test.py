@@ -8,10 +8,10 @@ import csv
 testdir = os.path.dirname(os.path.abspath(__file__))
 datadir = os.path.join(testdir, "data")
 rootdir = os.path.dirname(testdir)
-libdir = os.path.join(rootdir, "src", "Deformation")
+libdir = os.path.join(rootdir, "LINZ", "deformation")
 testpt_extension = ".testdata.csv"
 sys.path.insert(0, libdir)
-from DeformationGrid import DeformationGridGeoTIFF
+from grid import DeformationGridGeoTIFF
 
 
 class GeotiffGridTest(fileunittest.TestCase):

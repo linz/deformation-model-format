@@ -13,8 +13,8 @@ import re
 import sys
 from collections import namedtuple
 from datetime import datetime
-from DeformationGrid import DeformationGridGeoTIFF, RangeError
-from DictObject import DictObject, Field, FormatError
+from grid import DeformationGridGeoTIFF, RangeError
+from dict_object import DictObject, Field, FormatError
 
 DisplacementFields = {
     "none": [],
