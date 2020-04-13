@@ -94,6 +94,8 @@ class TimeFunction:
             r0 = datetime(value.year, 1, 1)
             r1 = datetime(value.year + 1, 1, 1)
             value = value.year + (value - r0).total_seconds() / (r1 - r0).total_seconds()
+        if type(value) == int:
+            value = float(value)
         if type(value) != float:
             raise ValueError("Invalid value {0} for date/time".format(value))
         return value
@@ -202,14 +204,14 @@ class PiecewiseFunction(DictObject):
             elif self.before_first == self.CONSTANT:
                 return self.model[0].scale_factor
             else:
-                return self.linearExtrapolation(self.refpoint[0], self.refpoint[1], epoch)
-        elif epoch > self.model[1].epoch:
+                return self.linearExtrapolation(self.model[0], self.model[1], epoch)
+        elif epoch > self.model[-1].epoch:
             if self.after_last == self.ZERO:
                 return 0.0
             elif self.after_last == self.CONSTANT:
                 return self.model[-1].scale_factor
             else:
-                return self.linearExtrapolation(self.refpoint[-2], self.refpoint[-1], epoch)
+                return self.linearExtrapolation(self.model[-2], self.model[-1], epoch)
         for r0, r1 in zip(self.model[:-1], self.model[1:]):
             if epoch <= r1.epoch:
                 return self.linearExtrapolation(r0, r1, epoch)
@@ -612,4 +614,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

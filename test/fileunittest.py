@@ -87,6 +87,7 @@ class TestCase(unittest.TestCase):
                 dumph.write(dumpDelimiter)
                 dumpDelimiter = ",\n"
                 dumph.write('"{0}": {1}'.format(testcode, self.toJsonStr(output)))
+                print('"{0}": {1}'.format(testcode, self.toJsonStr(output)))
             self.testResults[testcode] = output
         else:
             message = message or testname + " incorrect"
