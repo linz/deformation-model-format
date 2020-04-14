@@ -236,13 +236,13 @@ class ExponentialFunction(DictObject, TimeFunction):
         DictObject.__init__(self, self.fields, value, context=context)
 
     def valueAt(self, epoch):
+        if epoch < self.reference_epoch:
+            return self.before_scale_factor
         if self.end_epoch is not None and epoch > self.end_epoch:
             epoch = self.end_epoch
-        if epoch < self.start_epoch:
-            return self.before_scale_factor
         return self.initial_scale_factor + (
             (self.final_scale_factor - self.initial_scale_factor)
-            * (1.0 - math.exp((self.ref_epoch - epoch) / self.relaxation_constant))
+            * (1.0 - math.exp((self.reference_epoch - epoch) / self.relaxation_constant))
         )
 
 

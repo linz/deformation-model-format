@@ -96,6 +96,31 @@ class TimeFunctionTest(fileunittest.TestCase):
         )
 
     def test007_exponential_function(self):
+        exp1 = {
+            "type": "exponential",
+            "parameters": {
+                "reference_epoch": "2012-09-13T00:00:00Z",
+                "end_epoch": "2019-09-13T00:00:00Z",
+                "relaxation_constant": 3.2,
+                "before_scale_factor": -1.5,
+                "initial_scale_factor": 0.8,
+                "final_scale_factor": 1.3,
+            },
+        }
+        dates = [2001.5, 2012.699, 2012.700, 2013.7, 2014.2, 2019.698, 2019.700, 2023.5]
+        self.checkFunction(exp1, dates, "exp1")
+        exp2 = {
+            "type": "exponential",
+            "parameters": {
+                "reference_epoch": "2012-09-13T00:00:00Z",
+                "relaxation_constant": 3.2,
+                "before_scale_factor": -1.5,
+                "initial_scale_factor": 0.8,
+                "final_scale_factor": 1.3,
+            },
+        }
+        self.checkFunction(exp2, dates, "exp2")
+
         pass
 
 
