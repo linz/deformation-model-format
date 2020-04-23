@@ -18,7 +18,7 @@ import re
 import json
 import sys
 from LINZ.DeformationModel import Model, Time
-import deformation_csv_to_gtiff
+
 
 # Arguments used by the program
 
@@ -35,6 +35,7 @@ parser.add_argument("-r", "--reference-date", default="2001-01-01", help="Refere
 parser.add_argument("-u", "--default-uncertainty", type=float, default=0.01, help="Default uncertainty for model")
 parser.add_argument("-c", "--compact-metadata", action="store_true", help="Reduce size of metadata in GeoTIFF directory")
 parser.add_argument("-n", "--no-optimize", action="store_true", help="Don't optimized GeoTIFF for cloud")
+parser.add_argument("--no-build-grids", action="store_false", dest="build_grids", help="Don't build GeoTIFF grids")
 parser.add_argument("--uint16-encoding", action="store_true", help="Use uint16 storage with linear scaling/offseting")
 parser.add_argument("--split-child-grids", action="store_true", help="Split child grids that overlap multiple parents")
 parser.add_argument(
@@ -75,7 +76,7 @@ class Extent:
         self._maxlat = maxlat
 
     def copy(self):
-        return Extent(self._minlon, self._maxlon, self._minlat, self._maxlat)
+        return Extent(self._minlon, self._minlat, self._maxlon, self._maxlat)
 
     def unionWith(self, other):
         if other._minlon < self._minlon:
@@ -120,6 +121,9 @@ if not isdir(bd):
         raise RuntimeError("Invalid target build directory: " + bd)
     else:
         os.makedirs(bd)
+
+if args.build_grids:
+    import deformation_csv_to_gtiff
 
 defname = args.model_name
 
@@ -355,9 +359,12 @@ for sequence in sequences:
         gtiffj = os.path.join(bd, gridname) + ".json"
         with open(gtiffj, "w") as gridf:
             gridf.write(json.dumps(sequence.grids, indent=2))
-        gridfiles = deformation_csv_to_gtiff.build_deformation_gtiff(gtiffj, gridname, args, basedir=bd)
-        if not args.keep_gtiff_definition_files:
-            os.unlink(gtiffj)
+        if args.build_grids:
+            gridfiles = deformation_csv_to_gtiff.build_deformation_gtiff(gtiffj, gridname, args, basedir=bd)
+            if not args.keep_gtiff_definition_files:
+                os.unlink(gtiffj)
+        else:
+            gridfiles = [gridname + ".json"]
 
         for gridfile in gridfiles:
             gtiff = os.path.join(bd, gridfile)
