@@ -22,5 +22,19 @@
 "points_out_of_range_point_5": "RangeError()",
 "points_out_of_range_point_6": "RangeError()",
 "points_out_of_range_point_7": "RangeError()",
-"points_out_of_range_point_8": "RangeError()"
+"points_out_of_range_point_8": "RangeError()",
+"geocentric_bilinear_near_pole_point_1": [0.36654564538372414, 2.793864662433064, 3.0],
+"geocentric_bilinear_near_pole_point_2": [-2.8150999546051025, -0.1242000013589859, 3.0],
+"geocentric_bilinear_near_pole_point_3": [1.302281861335715, -2.4986979520254096, 2.375],
+"geocentric_bilinear_near_pole_point_4": [-0.8484800515874498, 2.686927748893681, 3.546875],
+"offset_360_east_point_1": [0.8399999737739563],
+"offset_360_east_point_2": [0.75],
+"offset_360_east_point_3": [0.36000001430511475],
+"offset_360_east_point_4": [0.0],
+"offset_360_east_point_5": [0.4525000005960378],
+"offset_360_west_point_1": [0.8399999737739563],
+"offset_360_west_point_2": [0.75],
+"offset_360_west_point_3": [0.36000001430511475],
+"offset_360_west_point_4": [0.0],
+"offset_360_west_point_5": [0.4525000005960378]
 }

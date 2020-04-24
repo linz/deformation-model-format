@@ -23,7 +23,7 @@ class GeotiffGridTest(fileunittest.TestCase):
         assert os.path.exists(gfile), "Grid file {0} is missing".format(gfile)
 
         try:
-            grid = DeformationGridGeoTIFF(gfile)
+            grid = DeformationGridGeoTIFF(gfile, geographic=True)
             with open(tfile) as tfh:
                 tfr = csv.reader(tfh)
                 tfr.__next__()
@@ -46,6 +46,13 @@ class GeotiffGridTest(fileunittest.TestCase):
 
     def test_004_range_error(self):
         self.checkGrid("Points out of range", "grid3x4.tif", "grid3x4.test004.csv")
+
+    def test_005_polar_grid(self):
+        self.checkGrid("Geocentric bilinear near pole", "polar.tif", "polar.test005.csv")
+
+    def test_006_antimeridian(self):
+        self.checkGrid("Offset 360 east", "grid2x2_east.tif", "grid2x2.test001.csv")
+        self.checkGrid("Offset 360 west", "grid2x2_west.tif", "grid2x2.test001.csv")
 
 
 if __name__ == "__main__":

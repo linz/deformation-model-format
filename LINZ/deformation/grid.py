@@ -36,13 +36,23 @@ class GridError(ValueError):
 
 class DeformationGrid(ABC):
     class Extent:
-        def __init__(self, minlon, minlat, maxlon, maxlat):
+        def __init__(self, minlon, minlat, maxlon, maxlat, geographic=True):
             self.minlon = minlon
             self.minlat = minlat
             self.maxlon = maxlon
             self.maxlat = maxlat
+            self.geographic = geographic
+
+        def wrapLongitude(self, lon):
+            if self.geographic:
+                while lon < self.minlon:
+                    lon += 360.0
+                while lon > self.maxlon:
+                    lon -= 360.0
+            return lon
 
         def containsPoint(self, lon, lat):
+            lon = self.wrapLongitude(lon)
             return lon >= self.minlon and lon <= self.maxlon and lat >= self.minlat and lat <= self.maxlat
 
         def containsExtent(self, other):
@@ -67,7 +77,7 @@ class DeformationGrid(ABC):
             self.nrow = nrow
 
     class SubGrid(ABC):
-        def __init__(self, id, size, extent, method, displacement_type, uncertainty_type, is_degrees):
+        def __init__(self, id, size, extent, method, displacement_type, uncertainty_type, degrees_units, geographic_grid=True):
             self.id = id
             self.size = size
             assert size.ncol > 1 and size.nrow > 1, "Number of rows and columns must be greater than 1"
@@ -81,7 +91,7 @@ class DeformationGrid(ABC):
                 self.calcValue = self.calcValueBilinear
             elif method == BilinearGeocentricMethod:
                 self.calcValue = self.calcValueGeocentricBilinear
-                if is_degrees:
+                if degrees_units:
                     raise RuntimeError(
                         "Cannot use {0} interpolation method with degrees units".format(BilinearGeocentricMethod)
                     )
@@ -89,9 +99,12 @@ class DeformationGrid(ABC):
                 raise ValueError(
                     'Interpolation method must be "{0}" or "{1}"'.format(BilinearMethod, BilinearGeocentricMethod)
                 )
+            if degrees_units and not geographic_grid:
+                raise ValueError("Invalid grid - degrees units incompatible with projection CRS")
             self.displacement_type = displacement_type
             self.uncertainty_type = uncertainty_type
-            self.is_degrees = is_degrees
+            self.geographic_grid = geographic_grid
+            self.degrees_units = degrees_units
             self.data = None
             self.enxyz = None
 
@@ -106,6 +119,7 @@ class DeformationGrid(ABC):
                     raise GridError("Grid {0} overlaps grid {1}".format(grid.id, self.id))
 
         def interpolationFactors(self, lon, lat):
+            lon = self.extent.wrapLongitude(lon)
             fcol = (lon - self.extent.minlon) / self.lonsize
             frow = (lat - self.extent.minlat) / self.latsize
             col = max(0, min(self.size.ncol - 2, int(fcol)))
@@ -166,23 +180,24 @@ class DeformationGrid(ABC):
             envec = np.array([[-sinlon, coslon, 0.0], [-coslon * sinlat, -sinlon * sinlat, coslat]])
             # Then multiply envec at each node by corresponding displacement value and
             # sum on 0/1 axes to compute xyz displacement at calculation point
-            dispvec = np.sum(nodevalues[:, :2].reshape(4, 2, 1) * envecs * factors.reshape(4, 1, 1), axis=(0, 1))
+            dispvec = np.sum(nodevalues[:, :2].reshape(4, 2, 1) * envecs * factors.reshape((4, 1, 1)), axis=(0, 1))
             # dot product to calculate east/north vector at calc point
             result = dispvec.reshape((1, 3)).dot(envec.T).flatten()
             if len(nodevalues) > 2:
                 hvalue = np.sum(nodevalues[:, 2:] * factors.reshape(4, 1), axis=0)
                 result = np.hstack([result, hvalue])
-            #!!!NOTE Need to handle is_degrees here - not allowed
+            #!!!NOTE Need to handle degrees_units here - not allowed
             return result
 
         @abstractmethod
         def getValue(self, col, row):
             pass
 
-    def __init__(self, gridfile):
+    def __init__(self, gridfile, geographic=True):
         self.gridfile = gridfile
         self.loaded = False
         self.basegrid = None
+        self.geographic = geographic
 
     @abstractmethod
     def _loadGrid(self):
@@ -196,7 +211,7 @@ class DeformationGrid(ABC):
     def addSubgrid(self, subgrid):
         if subgrid.displacement_type not in BilinearGeocentricTypes and subgrid.method == BilinearGeocentricMethod:
             subgrid.method = BilinearMethod
-        if subgrid.method == BilinearGeocentricMethod and subgrid.is_degrees:
+        if subgrid.method == BilinearGeocentricMethod and subgrid.degrees_units:
             raise RuntimeError("Cannot use {0} interpolation method with degrees units".format(BilinearGeocentricMethod))
 
         if self.basegrid is None:
@@ -258,7 +273,7 @@ class DeformationGrid(ABC):
 
 class DeformationGridGeoTIFF(DeformationGrid):
     class SubGrid(DeformationGrid.SubGrid):
-        def __init__(self, id, dataset, scaling, method, disptype, unctype, is_degrees):
+        def __init__(self, id, dataset, scaling, method, disptype, unctype, degrees_units, geographic=True):
             size = DeformationGrid.Size(dataset.RasterXSize, dataset.RasterYSize)
             (lon0, dlondcol, dlondrow, lat0, dlatdcol, dlatdrow) = dataset.GetGeoTransform()
             self.transpose = False
@@ -272,7 +287,7 @@ class DeformationGridGeoTIFF(DeformationGrid):
             lat0 += dlatdrow * 0.5
             lon1 = lon0 + dlondcol * (size.ncol - 1)
             lat1 = lat0 + dlatdrow * (size.nrow - 1)
-            extent = DeformationGrid.Extent(min(lon0, lon1), min(lat0, lat1), max(lon0, lon1), max(lat0, lat1))
+            extent = DeformationGrid.Extent(min(lon0, lon1), min(lat0, lat1), max(lon0, lon1), max(lat0, lat1), geographic)
             self.reverseCols = lon1 < lon0
             self.reverseRows = lat1 < lat0
             self.scaling = scaling
@@ -280,7 +295,7 @@ class DeformationGridGeoTIFF(DeformationGrid):
             self.gridname = dataset.GetMetadataItem("grid_name")
             self.parentgrid = dataset.GetMetadataItem("arent_grid_name")
             self.nchildren = int(dataset.GetMetadataItem("number_of_nested_grids") or "0")
-            DeformationGrid.SubGrid.__init__(self, id, size, extent, method, disptype, unctype, is_degrees)
+            DeformationGrid.SubGrid.__init__(self, id, size, extent, method, disptype, unctype, degrees_units, geographic)
 
         def _loadData(self):
             ds = gdal.Open(self.id)
@@ -328,7 +343,7 @@ class DeformationGridGeoTIFF(DeformationGrid):
         gridtype = ""
         disptype = ""
         unctype = ""
-        is_degrees = None
+        degrees_units = None
         interpolation_method = BilinearMethod
         first = True
         for subds in subdatasets:
@@ -378,9 +393,9 @@ class DeformationGridGeoTIFF(DeformationGrid):
                     self.raiseError("{0} band {1} description {2} should be {3}".format(subds[0], i + 1, banddesc, fields[i]))
                 unit = "metre"
                 if banddesc in DegreeFields:
-                    if is_degrees is None:
-                        is_degrees = bandunit == "degree"
-                    if is_degrees:
+                    if degrees_units is None:
+                        degrees_units = bandunit == "degree"
+                    if degrees_units:
                         unit = "degree"
                 if bandunit != unit:
                     self.raiseError("{0} band {1} unit {2} should be {3}".format(subds[0], i + 1, bandunit, unit))
@@ -388,7 +403,9 @@ class DeformationGridGeoTIFF(DeformationGrid):
                 scaling = None
             try:
 
-                subgrid = self.SubGrid(subds[0], ds, scaling, subinterp, subdisptype, subunctype, is_degrees)
+                subgrid = self.SubGrid(
+                    subds[0], ds, scaling, subinterp, subdisptype, subunctype, degrees_units, self.geographic
+                )
                 self.addSubgrid(subgrid)
             except GridError as ex:
                 self.raiseError("Error loading grid {0}: {1}".format(subds[0], str(ex)))
@@ -402,6 +419,7 @@ class DeformationGridGeoTIFF(DeformationGrid):
         parser = argparse.ArgumentParser(description="Calculate deformation in a deformation model GeoTIFF file")
         parser.add_argument("geotiff_file", help="Name of the deformation model GeoTIFF file")
         parser.add_argument("--point", nargs=2, help="lon,lat to evaluate")
+        parser.add_argument("--projection", action="store_true", help="Grid is based on projection CRS")
         args = parser.parse_args(argv)
         grid = DeformationGridGeoTIFF(args.geotiff_file)
         grid.load()

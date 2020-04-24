@@ -198,6 +198,8 @@ class Grid:
 def create_unoptimized_file(sourcefilename, basefilename, args, basedir="", tmpext=""):
     gridspec = json.loads(open(sourcefilename).read())
     subgrids = [Grid(g) for g in gridspec["grids"]]
+    if basedir == "":
+        basedir = os.path.dirname(sourcefilename)
 
     # Determine source CSV fields and target bands for GeoTIFF file
 
@@ -234,7 +236,9 @@ def create_unoptimized_file(sourcefilename, basefilename, args, basedir="", tmpe
     while len(subgrids) > 0:
         subgrid = subgrids.pop(0)
         filename = subgrid.filename
-        if modeldir is not None:
+        if modeldir is None:
+            filename = os.path.join(basedir, filename)
+        else:
             filename = os.path.join(modeldir, "model", filename)
         if not os.path.exists(filename):
             raise RuntimeError("Source file {0} is missing".format(filename))
@@ -398,4 +402,3 @@ if __name__ == "__main__":
     gridfiles = build_deformation_gtiff(args.source, args.dest, args)
     for gridfile in gridfiles:
         print("Built", gridfile)
-

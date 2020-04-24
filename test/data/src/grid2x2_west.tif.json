@@ -1,0 +1,15 @@
+{
+  "crs": "EPSG:4959",
+  "type": "vertical:none",
+  "copyright": "Land Information New Zealand (2013): Released under Creative Commons Attribution 4.0 International",
+  "description": "2x2 vertical test grid west of +180",
+  "version": "20010101",
+  "interpolation_method": "bilinear",
+  "grids": [
+    {
+      "filename": "grid2x2_west.csv",
+      "extent": [ 525.8, -37.5, 526.2, -37.2 ],
+      "size": [2,2]
+    }
+  ]
+}
