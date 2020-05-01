@@ -99,6 +99,7 @@ def get_args(args=None):
         action="store_true",
         help="Use uint16 storage with linear scaling/offseting",
     )
+    parser.add_argument("--area-of-use", help="Area of use metadata for GeoTIFF grids")
     return parser.parse_args()
 
 
@@ -308,7 +309,7 @@ def create_unoptimized_file(sourcefilename, basefilename, args, basedir="", tmpe
             "/vsimem/tmp", subgrid.nx, subgrid.ny, nbands, gdal.GDT_Float32 if not args.uint16_encoding else gdal.GDT_UInt16
         )
 
-        if idx_ifd == 0 or args.individual_grids:
+        if subgrid.parent is None or args.individual_grids:
             description = gridspec["description"]
             copyright = gridspec["copyright"]
             version = gridspec["version"]
@@ -327,14 +328,15 @@ def create_unoptimized_file(sourcefilename, basefilename, args, basedir="", tmpe
                 tmp_ds.GetRasterBand(i + 1).SetUnitType("metre")
 
         # Calculate the GeoTransform
-        transform = [subgrid.xmin - subgrid.dx / 2.0, subgrid.dx, 0, subgrid.ymin - subgrid.dy / 2.0, 0, subgrid.dy]
+        transform = [subgrid.xmin - subgrid.dx / 2.0, subgrid.dx, 0, subgrid.ymax + subgrid.dy / 2.0, 0, -subgrid.dy]
 
         src_crs = osr.SpatialReference()
         src_crs.SetFromUserInput(gridspec["crs"])
         tmp_ds.SetSpatialRef(src_crs)
         tmp_ds.SetGeoTransform(transform)
         tmp_ds.SetMetadataItem("AREA_OR_POINT", "Point")
-
+        if args.area_of_use:
+            tmp_ds.SetMetadataItem("area_of_use", args.area_of_use)
         tmp_ds.SetMetadataItem("grid_name", subgrid.name)
         if subgrid.parent is not None:
             tmp_ds.SetMetadataItem("parent_grid_name", subgrid.parent.name)
@@ -344,6 +346,8 @@ def create_unoptimized_file(sourcefilename, basefilename, args, basedir="", tmpe
         for i, field in enumerate(csv_fields):
             bdata = data[field].copy()
             assert bdata.shape == (subgrid.nx, subgrid.ny)
+            # Flip y rows to make
+            bdata = np.flip(bdata, axis=1)
             # Might be useful to reconsider how to handle scaling if we
             # decide to employ it. eg to try 1.0e-6, 1.0e-5 ... to better
             # round to actual values.  Worst case (?) 10m earth movement

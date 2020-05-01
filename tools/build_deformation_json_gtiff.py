@@ -17,7 +17,6 @@ import os.path
 import re
 import json
 import sys
-from LINZ.DeformationModel import Model, Time
 
 
 # Arguments used by the program
@@ -38,6 +37,7 @@ parser.add_argument("-n", "--no-optimize", action="store_true", help="Don't opti
 parser.add_argument("--no-build-grids", action="store_false", dest="build_grids", help="Don't build GeoTIFF grids")
 parser.add_argument("--uint16-encoding", action="store_true", help="Use uint16 storage with linear scaling/offseting")
 parser.add_argument("--split-child-grids", action="store_true", help="Split child grids that overlap multiple parents")
+parser.add_argument("--area-of-use", help="Area of use metadata for grids")
 parser.add_argument(
     "-i", "--individual-grids", action="store_true", help="Write separate grid files for each child (for testing)"
 )
@@ -103,17 +103,12 @@ timeformat = "%Y-%m-%dT00:00:00Z"
 # ==============================================
 
 args = parser.parse_args()
-allversions = args.all_versions
-verbose = args.verbose
-source_crs = args.source_crs
-target_crs = args.target_crs
-component_uncertainty = [args.default_uncertainty, args.default_uncertainty]
-licensetype = args.license
-refdate = Time.Time(datetime.strptime(args.reference_date, "%Y-%m-%d"))
 
 md = args.model_dir
-if not isdir(md):
-    raise RuntimeError("Invalid model directory: " + md)
+modpath = joinpath(md, "model")
+tooldir = joinpath(md, "tools")
+if not isdir(modpath) or not isdir(tooldir):
+    raise RuntimeError("Invalid model directory: " + md + ": needs model and tools subdirectories")
 
 bd = args.target_dir
 if not isdir(bd):
@@ -125,7 +120,18 @@ if not isdir(bd):
 if args.build_grids:
     import deformation_csv_to_gtiff
 
+sys.path.insert(0, tooldir)
+from LINZ.DeformationModel import Model, Time
+
 defname = args.model_name
+allversions = args.all_versions
+verbose = args.verbose
+source_crs = args.source_crs
+target_crs = args.target_crs
+component_uncertainty = [args.default_uncertainty, args.default_uncertainty]
+licensetype = args.license
+refdate = Time.Time(datetime.strptime(args.reference_date, "%Y-%m-%d"))
+
 
 m = Model.Model(joinpath(md, "model"))
 authority = m.metadata("authority")
